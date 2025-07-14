@@ -36,7 +36,13 @@ class FaceDetector:
             for (top, right, bottom, left), encoding in new_faces:
                 self.face_counter += 1
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                face_img = frame[top:bottom, left:right]
+                margin = 30
+                img_height, img_width = frame.shape[:2]
+                crop_top = max(0, top - margin)
+                crop_right = min(img_width, right + margin)
+                crop_bottom = min(img_height, bottom + margin)
+                crop_left = max(0, left - margin)
+                face_img = frame[crop_top:crop_bottom, crop_left:crop_right]
                 filename = f"face_{self.face_counter}_{timestamp}.jpg"
                 filepath = os.path.join(self.output_dir, filename)
                 cv2.imwrite(filepath, face_img)
