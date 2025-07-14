@@ -2,7 +2,6 @@ import cv2
 import face_recognition
 from datetime import datetime
 import os
-import numpy as np
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6):
