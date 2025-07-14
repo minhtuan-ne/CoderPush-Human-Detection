@@ -5,6 +5,8 @@ import os
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6):
+        if not 0.0 <= tolerance <= 1.0:
+            raise ValueError("Tolerance must be between 0.0 and 1.0")
         self.face_counter = 0
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
@@ -27,9 +29,12 @@ class FaceDetector:
 
     def process_video_stream(self, video_source=0):
         cap = cv2.VideoCapture(video_source)
+        if not cap.isOpened():
+            raise RuntimeError(f"Failed to open video source: {video_source}")
         while True:
             ret, frame = cap.read()
             if not ret:
+                print("Failed to read frame or reached end of video")
                 break
             new_faces = self.detect_and_filter_faces(frame)
             for (top, right, bottom, left), encoding in new_faces:
@@ -44,7 +49,10 @@ class FaceDetector:
                 face_img = frame[crop_top:crop_bottom, crop_left:crop_right]
                 filename = f"face_{self.face_counter}_{timestamp}.jpg"
                 filepath = os.path.join(self.output_dir, filename)
-                cv2.imwrite(filepath, face_img)
+                success = cv2.imwrite(filepath, face_img)
+                if not success:
+                    print(f"Failed to save face image to {filepath}")
+                    continue
                 print(f"Face #{self.face_counter} detected at {timestamp}, saved to {filepath}")
                 # Here, send face_img, timestamp, and encoding to SQS for Lambda
                 # (Can encode the image as base64 and the encoding as a list)
