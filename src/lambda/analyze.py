@@ -18,9 +18,9 @@ def analyze_face(face):
         else:
             raise
 
-    print('Age: ', obj[0]['age'])
-    print('Gender: ', obj[0]['dominant_gender'])
-    print('Race: ', obj[0]['dominant_race'])
-    print('Emotion: ', obj[0]['dominant_emotion'])
+    print('Age:', obj[0]['age'])
+    print('Gender:', obj[0]['dominant_gender'])
+    print('Race:', obj[0]['dominant_race'])
+    print('Emotion:', obj[0]['dominant_emotion'])
 
     return obj 
