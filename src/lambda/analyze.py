@@ -13,7 +13,7 @@ def analyze_face(face: str) -> dict:
     align = True
 
     if not face:
-        raise ValueError("Face image path cannot be empty")
+        return {"error": "Face image path cannot be empty"}
     try:
         obj = DeepFace.analyze(
             img_path=face,
