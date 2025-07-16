@@ -20,10 +20,13 @@ def analyze_face(face):
     
     if not obj:
         return None
+    
+    dominant_emotion = obj[0]['dominant_emotion']
+    emotion_confidence = obj[0]['emotion'][dominant_emotion]
 
-    print('Age:', obj[0]['age'])
-    print('Gender:', obj[0]['dominant_gender'])
-    print('Race:', obj[0]['dominant_race'])
-    print('Emotion:', obj[0]['dominant_emotion'])
+    analysis_result = {
+        'emotion': dominant_emotion,
+        'emotion_confidence': emotion_confidence,
+    }
 
-    return obj 
+    return analysis_result 
