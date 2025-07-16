@@ -4,6 +4,9 @@ def analyze_face(face):
     detector = 'opencv'
     enforce_detection = False
     align = True
+    
+    if not face:
+        raise ValueError("Face image path cannot be empty")
     try:
         obj = DeepFace.analyze(
             img_path=face,
@@ -11,12 +14,12 @@ def analyze_face(face):
             enforce_detection=enforce_detection,
             align=align
         )
-    except ValueError as e:
-        if "Exception while processing" in str(e):
-            print(f"Error processing image: {e}")
-            return None
-        else:
-            raise
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        return None
+    
+    if not obj:
+        return None
 
     print('Age:', obj[0]['age'])
     print('Gender:', obj[0]['dominant_gender'])
