@@ -32,7 +32,7 @@ def verify_face(face1: str, face2: str) -> dict:
 
     verification_result = {
         'samePerson': bool(obj['verified']),
-        'verification_confidence': float(1 - obj.get('distance', 1)),  # Lower distance = higher confidence
+        'verification_confidence': max(0.0, float(1 - obj.get('distance', 1))),
     }
 
     return verification_result 
