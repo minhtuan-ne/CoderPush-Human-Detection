@@ -1,6 +1,13 @@
 from deepface import DeepFace
 
-def analyze_face(face):
+def analyze_face(face: str) -> dict:
+    """
+    Analyze a face image and return a JSON-compatible dict with analysis results.
+    Args:
+        face (str): Path to the face image file.
+    Returns:
+        dict: Analysis result including emotion and emotion_confidence, or error message.
+    """
     detector = 'opencv'
     enforce_detection = False
     align = True
