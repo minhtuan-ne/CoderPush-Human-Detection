@@ -4,7 +4,7 @@ def analyze_face(face):
     detector = 'opencv'
     enforce_detection = False
     align = True
-    
+
     if not face:
         raise ValueError("Face image path cannot be empty")
     try:
@@ -16,11 +16,11 @@ def analyze_face(face):
         )
     except Exception as e:
         print(f"Error processing image: {e}")
-        return None
-    
+        return {"error": str(e)}
+
     if not obj:
-        return None
-    
+        return {"error": "No analysis result returned"}
+
     dominant_emotion = obj[0]['dominant_emotion']
     emotion_confidence = obj[0]['emotion'][dominant_emotion]
 
