@@ -27,6 +27,34 @@ class FaceDetector:
                     self.recent_encodings = self.recent_encodings[-100:]
         return new_faces
 
+    # This is to process frame images sent from front end
+    def process_frame(self, frame):
+        new_faces = self.detect_and_filter_faces(frame)
+        results = []
+        for (top, right, bottom, left), encoding in new_faces:
+            self.face_counter += 1
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            margin = 30
+            img_height, img_width = frame.shape[:2]
+            crop_top = max(0, top - margin)
+            crop_right = min(img_width, right + margin)
+            crop_bottom = min(img_height, bottom + margin)
+            crop_left = max(0, left - margin)
+            face_img = frame[crop_top:crop_bottom, crop_left:crop_right]
+            filename = f"face_{self.face_counter}_{timestamp}.jpg"
+            filepath = os.path.join(self.output_dir, filename)
+            success = cv2.imwrite(filepath, face_img)
+            if not success:
+                continue
+            results.append({
+                "face_id": self.face_counter,
+                "img_URL": filepath,
+                "timestamp": timestamp
+            })
+        print(results)
+        return results
+
+    # This is to open camera locally on the computer, and process it    
     def process_video_stream(self, video_source=0):
         cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
@@ -64,6 +92,10 @@ class FaceDetector:
         cap.release()
         cv2.destroyAllWindows()
 
-if __name__ == "__main__":
-    detector = FaceDetector()
-    detector.process_video_stream()
+# if __name__ == "__main__":
+#     detector = FaceDetector()
+#     frame = cv2.imread('detected_faces/sample_frame.png')
+#     if frame is None:
+#         print("Failed to load image!")
+#     else:
+#         detector.process_frame(frame)
