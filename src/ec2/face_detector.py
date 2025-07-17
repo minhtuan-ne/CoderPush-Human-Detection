@@ -34,17 +34,8 @@ class FaceDetector:
         for (top, right, bottom, left), encoding in new_faces:
             self.face_counter += 1
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            margin = 30
-            img_height, img_width = frame.shape[:2]
-            crop_top = max(0, top - margin)
-            crop_right = min(img_width, right + margin)
-            crop_bottom = min(img_height, bottom + margin)
-            crop_left = max(0, left - margin)
-            face_img = frame[crop_top:crop_bottom, crop_left:crop_right]
-            filename = f"face_{self.face_counter}_{timestamp}.jpg"
-            filepath = os.path.join(self.output_dir, filename)
-            success = cv2.imwrite(filepath, face_img)
-            if not success:
+            filepath = self._crop_and_save_face(frame, top, right, bottom, left, self.face_counter, timestamp)
+            if not filepath:
                 continue
             results.append({
                 "face_id": self.face_counter,
@@ -77,20 +68,30 @@ class FaceDetector:
                 face_img = frame[crop_top:crop_bottom, crop_left:crop_right]
                 filename = f"face_{self.face_counter}_{timestamp}.jpg"
                 filepath = os.path.join(self.output_dir, filename)
-                success = cv2.imwrite(filepath, face_img)
-                if not success:
+                filepath = self._crop_and_save_face(frame, top, right, bottom, left, self.face_counter, timestamp)
+                if not filepath:
                     print(f"Failed to save face image to {filepath}")
                     continue
                 print(f"Face #{self.face_counter} detected at {timestamp}, saved to {filepath}")
-                # Here, send face_img, timestamp, and encoding to SQS for Lambda
-                # (Can encode the image as base64 and the encoding as a list)
-                # send_to_sqs(face_img, encoding, timestamp)
                 cv2.rectangle(frame, (left, top), (right, bottom), (255, 0, 0), 2)
             cv2.imshow('Face Detection', frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         cap.release()
         cv2.destroyAllWindows()
+
+    def _crop_and_save_face(self, frame, top, right, bottom, left, face_id, timestamp):
+        margin = 30
+        img_height, img_width = frame.shape[:2]
+        crop_top = max(0, top - margin)
+        crop_right = min(img_width, right + margin)
+        crop_bottom = min(img_height, bottom + margin)
+        crop_left = max(0, left - margin)
+        face_img = frame[crop_top:crop_bottom, crop_left:crop_right]
+        filename = f"face_{face_id}_{timestamp}.jpg"
+        filepath = os.path.join(self.output_dir, filename)
+        success = cv2.imwrite(filepath, face_img)
+        return filepath if success else None
 
 # if __name__ == "__main__":
 #     detector = FaceDetector()
