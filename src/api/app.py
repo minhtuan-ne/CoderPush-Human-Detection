@@ -1,0 +1,33 @@
+from flask import Flask, request, jsonify
+import numpy as np
+import cv2
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
+from ec2.face_detector import FaceDetector
+from lambda_aws.analyze import analyze_face
+
+
+app = Flask(__name__)
+detector = FaceDetector()
+
+@app.route('/api/detect', methods=['POST'])
+def detect():
+    file_bytes = request.get_data()
+    npimg = np.frombuffer(file_bytes, np.uint8)
+    frame = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+    if frame is None:
+        return jsonify({'error': 'Invalid image'}), 400
+    results = detector.process_frame(frame)
+    for result in results:
+        analysis = analyze_face(result["img_URL"])
+        if "error" in analysis:
+            result["emotion_error"] = 'Cannot detect'
+        else:
+            result["emotion"] = analysis["emotion"]
+            result["emotion_confidence"] = analysis["emotion_confidence"]
+    return jsonify(results)
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
