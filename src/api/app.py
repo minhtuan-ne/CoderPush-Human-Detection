@@ -6,9 +6,11 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 from ec2.face_detector import FaceDetector
 from lambda_aws.analyze import analyze_face
+from flask_cors import CORS
 
 
 app = Flask(__name__)
+CORS(app)
 detector = FaceDetector()
 
 @app.route('/api/detect', methods=['POST'])
@@ -30,4 +32,4 @@ def detect():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0", port=7860)
