@@ -1,6 +1,6 @@
 import cv2
 import face_recognition
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 
 class FaceDetector:
@@ -33,7 +33,7 @@ class FaceDetector:
         results = []
         for (top, right, bottom, left), encoding in new_faces:
             self.face_counter += 1
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
             filepath = self._crop_and_save_face(frame, top, right, bottom, left, self.face_counter, timestamp)
             if not filepath:
                 continue
@@ -58,7 +58,7 @@ class FaceDetector:
             new_faces = self.detect_and_filter_faces(frame)
             for (top, right, bottom, left), encoding in new_faces:
                 self.face_counter += 1
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
                 margin = 30
                 img_height, img_width = frame.shape[:2]
                 crop_top = max(0, top - margin)
@@ -66,7 +66,9 @@ class FaceDetector:
                 crop_bottom = min(img_height, bottom + margin)
                 crop_left = max(0, left - margin)
                 face_img = frame[crop_top:crop_bottom, crop_left:crop_right]
-                filename = f"face_{self.face_counter}_{timestamp}.jpg"
+                # Remove colons from timestamp for filename safety
+                safe_timestamp = timestamp.replace(":", "-")
+                filename = f"face_{self.face_counter}_{safe_timestamp}.jpg"
                 filepath = os.path.join(self.output_dir, filename)
                 filepath = self._crop_and_save_face(frame, top, right, bottom, left, self.face_counter, timestamp)
                 if not filepath:
@@ -88,7 +90,9 @@ class FaceDetector:
         crop_bottom = min(img_height, bottom + margin)
         crop_left = max(0, left - margin)
         face_img = frame[crop_top:crop_bottom, crop_left:crop_right]
-        filename = f"face_{face_id}_{timestamp}.jpg"
+        # Remove colons from timestamp for filename safety
+        safe_timestamp = timestamp.replace(":", "-")
+        filename = f"face_{face_id}_{safe_timestamp}.jpg"
         filepath = os.path.join(self.output_dir, filename)
         success = cv2.imwrite(filepath, face_img)
         return filepath if success else None
