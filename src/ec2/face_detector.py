@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 import os
 import numpy as np
 from insightface.app import FaceAnalysis
+from zoneinfo import ZoneInfo
+from numpy.linalg import norm
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6):
@@ -10,19 +12,36 @@ class FaceDetector:
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
         self.tolerance = tolerance
-        self.face_app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+        self.known_embeddings = []
+        self.face_app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'], root="/tmp/.insightface")
         self.face_app.prepare(ctx_id=0, det_size=(640, 640))
+
+    def get_local_timestamp(self, tz_str='Asia/Ho_Chi_Minh'):
+        utc_now = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
+        local_time = utc_now.astimezone(ZoneInfo(tz_str))
+        return local_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    def is_duplicate(self, embedding):
+        for known_emb in self.known_embeddings:
+            sim = np.dot(embedding, known_emb) / (norm(embedding) * norm(known_emb))
+            if sim > (1 - self.tolerance):
+                return True
+        return False
 
     def process_frame(self, frame):
         faces = self.face_app.get(frame)
         results = []
         for face in faces:
             embedding = face.embedding
-            # Deduplication logic removed: save every detected face
+            if embedding is None:
+                continue
+            if self.is_duplicate(embedding):
+                continue
+            self.known_embeddings.append(embedding)
             self.face_counter += 1
             bbox = face.bbox.astype(int)
             x1, y1, x2, y2 = bbox
-            timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+            timestamp = self.get_local_timestamp()
             filepath = self._crop_and_save_face(frame, y1, x2, y2, x1, self.face_counter, timestamp)
             if not filepath:
                 continue
