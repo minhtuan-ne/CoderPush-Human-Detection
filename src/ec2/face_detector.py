@@ -3,36 +3,22 @@ from datetime import datetime, timezone
 import os
 import numpy as np
 from insightface.app import FaceAnalysis
-from numpy.linalg import norm
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6):
         self.face_counter = 0
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
-        self.known_embeddings = []
         self.tolerance = tolerance
         self.face_app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
         self.face_app.prepare(ctx_id=0, det_size=(640, 640))
-
-    def is_duplicate(self, embedding):
-        for known_emb in self.known_embeddings:
-            sim = np.dot(embedding, known_emb) / (norm(embedding) * norm(known_emb))
-            if sim > (1 - self.tolerance):  # Higher sim means more similar
-                return True
-        return False
 
     def process_frame(self, frame):
         faces = self.face_app.get(frame)
         results = []
         for face in faces:
             embedding = face.embedding
-            if embedding is None:
-                continue
-            if self.is_duplicate(embedding):
-                continue
-
-            self.known_embeddings.append(embedding)
+            # Deduplication logic removed: save every detected face
             self.face_counter += 1
             bbox = face.bbox.astype(int)
             x1, y1, x2, y2 = bbox
