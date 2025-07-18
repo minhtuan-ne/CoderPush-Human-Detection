@@ -1,40 +1,43 @@
 import cv2
-import face_recognition
 from datetime import datetime, timezone
 import os
+import numpy as np
+from insightface.app import FaceAnalysis
+from numpy.linalg import norm
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6):
-        if not 0.0 <= tolerance <= 1.0:
-            raise ValueError("Tolerance must be between 0.0 and 1.0")
         self.face_counter = 0
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
-        self.recent_encodings = []
-        self.tolerance = tolerance 
+        self.known_embeddings = []
+        self.tolerance = tolerance
+        self.face_app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+        self.face_app.prepare(ctx_id=0, det_size=(640, 640))
 
-    def detect_and_filter_faces(self, frame):
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        face_locations = face_recognition.face_locations(rgb_frame)
-        face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
-        new_faces = []
-        for (location, encoding) in zip(face_locations, face_encodings):
-            matches = face_recognition.compare_faces(self.recent_encodings, encoding, tolerance=self.tolerance)
-            if not any(matches):
-                new_faces.append((location, encoding))
-                self.recent_encodings.append(encoding)
-                if len(self.recent_encodings) > 100:
-                    self.recent_encodings = self.recent_encodings[-100:]
-        return new_faces
+    def is_duplicate(self, embedding):
+        for known_emb in self.known_embeddings:
+            sim = np.dot(embedding, known_emb) / (norm(embedding) * norm(known_emb))
+            if sim > (1 - self.tolerance):  # Higher sim means more similar
+                return True
+        return False
 
-    # This is to process frame images sent from front end
     def process_frame(self, frame):
-        new_faces = self.detect_and_filter_faces(frame)
+        faces = self.face_app.get(frame)
         results = []
-        for (top, right, bottom, left), encoding in new_faces:
+        for face in faces:
+            embedding = face.embedding
+            if embedding is None:
+                continue
+            if self.is_duplicate(embedding):
+                continue
+
+            self.known_embeddings.append(embedding)
             self.face_counter += 1
+            bbox = face.bbox.astype(int)
+            x1, y1, x2, y2 = bbox
             timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-            filepath = self._crop_and_save_face(frame, top, right, bottom, left, self.face_counter, timestamp)
+            filepath = self._crop_and_save_face(frame, y1, x2, y2, x1, self.face_counter, timestamp)
             if not filepath:
                 continue
             results.append({
@@ -45,7 +48,6 @@ class FaceDetector:
         print(results)
         return results
 
-    # This is to open camera locally on the computer, and process it    
     def process_video_stream(self, video_source=0):
         cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
@@ -55,27 +57,7 @@ class FaceDetector:
             if not ret:
                 print("Failed to read frame or reached end of video")
                 break
-            new_faces = self.detect_and_filter_faces(frame)
-            for (top, right, bottom, left), encoding in new_faces:
-                self.face_counter += 1
-                timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-                margin = 30
-                img_height, img_width = frame.shape[:2]
-                crop_top = max(0, top - margin)
-                crop_right = min(img_width, right + margin)
-                crop_bottom = min(img_height, bottom + margin)
-                crop_left = max(0, left - margin)
-                face_img = frame[crop_top:crop_bottom, crop_left:crop_right]
-                # Remove colons from timestamp for filename safety
-                safe_timestamp = timestamp.replace(":", "-")
-                filename = f"face_{self.face_counter}_{safe_timestamp}.jpg"
-                filepath = os.path.join(self.output_dir, filename)
-                filepath = self._crop_and_save_face(frame, top, right, bottom, left, self.face_counter, timestamp)
-                if not filepath:
-                    print(f"Failed to save face image to {filepath}")
-                    continue
-                print(f"Face #{self.face_counter} detected at {timestamp}, saved to {filepath}")
-                cv2.rectangle(frame, (left, top), (right, bottom), (255, 0, 0), 2)
+            self.process_frame(frame)
             cv2.imshow('Face Detection', frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -90,7 +72,6 @@ class FaceDetector:
         crop_bottom = min(img_height, bottom + margin)
         crop_left = max(0, left - margin)
         face_img = frame[crop_top:crop_bottom, crop_left:crop_right]
-        # Remove colons from timestamp for filename safety
         safe_timestamp = timestamp.replace(":", "-")
         filename = f"face_{face_id}_{safe_timestamp}.jpg"
         filepath = os.path.join(self.output_dir, filename)
