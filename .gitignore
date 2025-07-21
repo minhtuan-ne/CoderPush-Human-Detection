@@ -77,6 +77,7 @@ config/
 
 # MacOS
 .DS_Store
+._*
 
 # Test folders
 tests/__pycache__/ 
