@@ -18,6 +18,11 @@ stream_url = "https://www.youtube.com/watch?v=cH7VBI4QQzA"
 output_file = "live.ts"
 subprocess.Popen(["streamlink", "--force", stream_url, "best", "-o", output_file])
 
+@app.route('/')
+def home():
+    """A simple health check endpoint."""
+    return jsonify({"status": "ok", "message": "API is running"})
+
 @app.route('/api/process_stream', methods=['GET'])
 def process_stream():
     results = detector.process_video_stream(video_source=output_file, show_window=False, max_frames=10)
