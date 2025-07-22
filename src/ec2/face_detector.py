@@ -14,8 +14,11 @@ class FaceDetector:
         os.makedirs(self.output_dir, exist_ok=True)
         self.tolerance = tolerance
         self.known_embeddings = []
-        self.face_app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'], root="/tmp/.insightface")
-        self.face_app.prepare(ctx_id=0, det_size=(640, 640))
+        try:
+            self.face_app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'], root="/tmp/.insightface")
+            self.face_app.prepare(ctx_id=0, det_size=(640, 640))
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize InsightFace: {str(e)}")
 
     def get_local_timestamp(self, tz_str='Asia/Ho_Chi_Minh'):
         utc_now = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
@@ -97,20 +100,25 @@ class FaceDetector:
             raise RuntimeError(f"Failed to open video source: {video_source}")
         frame_count = 0
         all_results = []
-        while True:
-            ret, frame = cap.read()
-            if not ret or frame_count >= max_frames:
-                break
-            results = self.process_frame(frame)
-            all_results.extend(results)
-            frame_count += 1
-            if show_window:
-                cv2.imshow('Face Detection', frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret or frame_count >= max_frames:
                     break
-        cap.release()
-        if show_window:
-            cv2.destroyAllWindows()
+                results = self.process_frame(frame)
+                all_results.extend(results)
+                frame_count += 1
+                if show_window:
+                    cv2.imshow('Face Detection', frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+        except Exception as e:
+            print(f"Error during video processing: {e}")
+            raise
+        finally:
+            cap.release()
+            if show_window:
+                cv2.destroyAllWindows()
         return all_results
 
     def _crop_and_save_face(self, frame, top, right, bottom, left, face_id, timestamp):
