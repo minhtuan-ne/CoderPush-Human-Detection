@@ -11,12 +11,13 @@ import subprocess
 
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["*"])
 detector = FaceDetector()
 
-stream_url = "https://www.youtube.com/watch?v=cH7VBI4QQzA"
+stream_url_1 = "https://www.youtube.com/watch?v=cH7VBI4QQzA"
+stream_url_2 = "https://www.youtube.com/watch?v=VR-x3HdhKLQ"
 output_file = "live.ts"
-subprocess.Popen(["streamlink", "--force", stream_url, "best", "-o", output_file])
+subprocess.Popen(["streamlink", "--force", stream_url_2, "best", "-o", output_file])
 
 @app.route('/')
 def home():
