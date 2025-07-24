@@ -13,8 +13,9 @@ class FaceDetector:
         os.makedirs(self.output_dir, exist_ok=True)
         self.tolerance = tolerance
         self.known_embeddings = []
+        models = ['buffalo_l', 'buffalo_m', 'buffalo_s', 'buffalo_sc', 'antelopev2']
         try:
-            self.face_app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'], root="/tmp/.insightface")
+            self.face_app = FaceAnalysis(name=models[0], providers=['CPUExecutionProvider'], root="/tmp/.insightface")
             self.face_app.prepare(ctx_id=0, det_size=(640, 640))
         except Exception as e:
             raise RuntimeError(f"Failed to initialize InsightFace: {str(e)}")
