@@ -13,12 +13,15 @@ class FaceDetector:
         os.makedirs(self.output_dir, exist_ok=True)
         self.tolerance = tolerance
         self.known_embeddings = []
-        models = ['buffalo_l', 'buffalo_m', 'buffalo_s', 'buffalo_sc', 'antelopev2']
+        self.models = ['buffalo_l', 'buffalo_m', 'buffalo_s', 'buffalo_sc', 'antelopev2']
+        self.current_model = self.models[0]
         try:
-            self.face_app = FaceAnalysis(name=models[0], providers=['CPUExecutionProvider'], root="/tmp/.insightface")
+            self.face_app = FaceAnalysis(name=self.current_model, providers=['CPUExecutionProvider'], root="/tmp/.insightface")
             self.face_app.prepare(ctx_id=0, det_size=(640, 640))
         except Exception as e:
             raise RuntimeError(f"Failed to initialize InsightFace: {str(e)}")
+
+        self.frame_skip_counter = 0
 
     def get_local_timestamp(self, tz_str='Asia/Ho_Chi_Minh'):
         utc_now = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
@@ -34,6 +37,11 @@ class FaceDetector:
         return False
 
     def process_frame(self, frame):
+        self.frame_skip_counter += 1
+        if self.frame_skip_counter % 5 != 0:
+            print('skip')
+            return []
+    
         faces = self.face_app.get(frame)
         results = []
         for face in faces:
@@ -58,7 +66,7 @@ class FaceDetector:
         print(results)
         return results
 
-    def process_video_stream(self, video_source=0, show_window=False, max_frames=50):
+    def process_video_stream(self, video_source=0, show_window=False, max_frames=10):
         cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
             raise RuntimeError(f"Failed to open video source: {video_source}")
