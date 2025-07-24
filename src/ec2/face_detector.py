@@ -5,6 +5,8 @@ import numpy as np
 from insightface.app import FaceAnalysis
 from zoneinfo import ZoneInfo
 from numpy.linalg import norm
+import time
+import jsonify
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6):
@@ -42,10 +44,10 @@ class FaceDetector:
             print('skip')
             return []
 
-        # else:
-        #     filename = f"frame_{self.frame_skip_counter}.jpg"
-        #     filepath = os.path.join('saved_frames', filename)
-        #     success = cv2.imwrite(filepath, frame)
+        else:
+            filename = f"frame_{self.frame_skip_counter}.jpg"
+            filepath = os.path.join('saved_frames', filename)
+            success = cv2.imwrite(filepath, frame)
 
         print("Processing frame", self.frame_skip_counter)
 
@@ -71,9 +73,9 @@ class FaceDetector:
                 "timestamp": timestamp
             })
         print(results)
-        return results
+        return jsonify(results)
 
-    def process_video_stream(self, video_source=0, show_window=False, max_frames=10):
+    def process_video_stream(self, video_source=0, show_window=False, max_frames=10, emit_func=None):
         cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
             raise RuntimeError(f"Failed to open video source: {video_source}")
@@ -85,8 +87,16 @@ class FaceDetector:
                 if not ret or frame_count >= max_frames:
                     break
                 results = self.process_frame(frame)
-                all_results.extend(results)
+                if emit_func:
+                    emit_func(results) 
+                    time.sleep(0.1) 
+
+                all_results.append(results)
+
+                print(all_results)
+
                 frame_count += 1
+
                 if show_window:
                     cv2.imshow('Face Detection', frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -98,7 +108,9 @@ class FaceDetector:
             cap.release()
             if show_window:
                 cv2.destroyAllWindows()
+
         return all_results
+
 
     def _crop_and_save_face(self, frame, top, right, bottom, left, face_id, timestamp):
         margin = 30
