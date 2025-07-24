@@ -6,7 +6,7 @@ from insightface.app import FaceAnalysis
 from zoneinfo import ZoneInfo
 from numpy.linalg import norm
 import time
-import jsonify
+from flask import jsonify
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6):
