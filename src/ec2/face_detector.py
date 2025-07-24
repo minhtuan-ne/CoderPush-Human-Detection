@@ -5,7 +5,8 @@ import numpy as np
 from insightface.app import FaceAnalysis
 from zoneinfo import ZoneInfo
 from numpy.linalg import norm
-# import time
+import time
+from flask import jsonify
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6):
@@ -14,33 +15,50 @@ class FaceDetector:
         os.makedirs(self.output_dir, exist_ok=True)
         self.tolerance = tolerance
         self.known_embeddings = []
+        self.models = ['buffalo_l', 'buffalo_m', 'buffalo_s', 'buffalo_sc', 'antelopev2']
+        self.current_model = self.models[0]
         try:
-            self.face_app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'], root="/tmp/.insightface")
+            self.face_app = FaceAnalysis(name=self.current_model, providers=['CPUExecutionProvider'], root="/tmp/.insightface")
             self.face_app.prepare(ctx_id=0, det_size=(640, 640))
         except Exception as e:
             raise RuntimeError(f"Failed to initialize InsightFace: {str(e)}")
+
+        self.frame_skip_counter = 0
 
     def get_local_timestamp(self, tz_str='Asia/Ho_Chi_Minh'):
         utc_now = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
         local_time = utc_now.astimezone(ZoneInfo(tz_str))
         return local_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-    # def is_duplicate(self, embedding):
-    #     for known_emb in self.known_embeddings:
-    #         sim = np.dot(embedding, known_emb) / (norm(embedding) * norm(known_emb))
-    #         if sim > (1 - self.tolerance):
-    #             return True
-    #     return False
+    def is_duplicate(self, embedding):
+        for known_emb in self.known_embeddings:
+            sim = np.dot(embedding, known_emb) / (norm(embedding) * norm(known_emb))
+            if sim > (1 - self.tolerance):
+                print("Duplicate face")
+                return True
+        return False
 
     def process_frame(self, frame):
+        self.frame_skip_counter += 1
+        if self.frame_skip_counter % 20 != 0:
+            print('skip')
+            return []
+
+        else:
+            filename = f"frame_{self.frame_skip_counter}.jpg"
+            filepath = os.path.join('saved_frames', filename)
+            success = cv2.imwrite(filepath, frame)
+
+        print("Processing frame", self.frame_skip_counter)
+
         faces = self.face_app.get(frame)
         results = []
         for face in faces:
             embedding = face.embedding
             if embedding is None:
                 continue
-            # if self.is_duplicate(embedding):
-            #     continue
+            if self.is_duplicate(embedding):
+                continue
             self.known_embeddings.append(embedding)
             self.face_counter += 1
             bbox = face.bbox.astype(int)
@@ -55,46 +73,9 @@ class FaceDetector:
                 "timestamp": timestamp
             })
         print(results)
-        return results
+        return jsonify(results)
 
-    # def process_video_stream(self, video_source=0, show_window=False, all_results=None, stop_event=None):
-    #     """
-    #     Continuously processes a video stream until a stop event is set.
-    #     - video_source: Path to the video file or stream URL.
-    #     - all_results: A thread-safe deque to append detection results to.
-    #     - stop_event: A threading.Event to signal when to stop processing.
-    #     """
-    #     while stop_event is None or not stop_event.is_set():
-    #         cap = cv2.VideoCapture(video_source)
-    #         if not cap.isOpened():
-    #             print(f"Failed to open video source: {video_source}, retrying in 5 seconds...")
-    #             time.sleep(5)
-    #             continue
-    #
-    #         print("Video source opened successfully. Starting frame processing.")
-    #         while not stop_event.is_set():
-    #             ret, frame = cap.read()
-    #             if not ret:
-    #                 print("End of stream or buffer. Re-opening video source...")
-    #                 break  # Break inner loop to reopen the capture
-    #
-    #             results = self.process_frame(frame)
-    #             if all_results is not None and results:
-    #                 all_results.extend(results)
-    #
-    #             if show_window:
-    #                 cv2.imshow('Face Detection', frame)
-    #                 if cv2.waitKey(1) & 0xFF == ord('q'):
-    #                     stop_event.set()
-    #                     break
-    #
-    #         cap.release()
-    #         if show_window:
-    #             cv2.destroyAllWindows()
-    #
-    #     print("Video processing stopped.")
-
-    def process_video_stream(self, video_source=0, show_window=False, max_frames=50):
+    def process_video_stream(self, video_source=0, show_window=False, max_frames=10, emit_func=None):
         cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
             raise RuntimeError(f"Failed to open video source: {video_source}")
@@ -106,8 +87,16 @@ class FaceDetector:
                 if not ret or frame_count >= max_frames:
                     break
                 results = self.process_frame(frame)
-                all_results.extend(results)
+                if emit_func:
+                    emit_func(results) 
+                    time.sleep(0.1) 
+
+                all_results.append(results)
+
+                print(all_results)
+
                 frame_count += 1
+
                 if show_window:
                     cv2.imshow('Face Detection', frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -119,7 +108,9 @@ class FaceDetector:
             cap.release()
             if show_window:
                 cv2.destroyAllWindows()
+
         return all_results
+
 
     def _crop_and_save_face(self, frame, top, right, bottom, left, face_id, timestamp):
         margin = 30
@@ -132,8 +123,15 @@ class FaceDetector:
         safe_timestamp = timestamp.replace(":", "-")
         filename = f"face_{face_id}_{safe_timestamp}.jpg"
         filepath = os.path.join(self.output_dir, filename)
-        success = cv2.imwrite(filepath, face_img)
-        return filepath if success else None
+
+        # Compress image before saving
+        success, encoded_img = cv2.imencode('.jpg', face_img, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+        if success:
+            with open(filepath, 'wb') as f:
+                f.write(encoded_img)
+            return filepath
+        return None
+
 
 # if __name__ == "__main__":
 #     detector = FaceDetector()

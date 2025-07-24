@@ -1,50 +1,64 @@
-from flask import Flask, request, jsonify
-import numpy as np
-import cv2
+from flask_socketio import SocketIO, emit
+from flask import Flask, request
+from stream_manager import StreamManager
 import sys
 import os
+import time
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 from ec2.face_detector import FaceDetector
-from lambda_aws.analyze import analyze_face
-from flask_cors import CORS
-import subprocess
-
 
 app = Flask(__name__)
-CORS(app, origins=["*"])
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Configuration
+STREAM_URL = "https://www.youtube.com/watch?v=VR-x3HdhKLQ"
+VIDEO_FILE = "live.ts"
+MAX_FRAMES = 100
+
+# Initialize components
+stream_manager = StreamManager(STREAM_URL, output_file=VIDEO_FILE)
 detector = FaceDetector()
 
-stream_url_1 = "https://www.youtube.com/watch?v=cH7VBI4QQzA"
-stream_url_2 = "https://www.youtube.com/watch?v=VR-x3HdhKLQ"
-output_file = "live.ts"
-subprocess.Popen(["streamlink", "--force", stream_url_2, "best", "-o", output_file])
+@socketio.on("connect")
+def handle_connect():
+    print("Client connected")
 
-@app.route('/')
-def home():
-    """A simple health check endpoint."""
-    return jsonify({"status": "ok", "message": "API is running"})
+@socketio.on("disconnect")
+def handle_disconnect():
+    print("Client disconnected")
 
-@app.route('/api/process_stream', methods=['GET'])
-def process_stream():
-    results = detector.process_video_stream(video_source=output_file, show_window=False, max_frames=10)
-    return jsonify(results)
+@socketio.on("start_processing")
+def handle_start_processing():
+    sid = request.sid
+    print(f"Starting background processing loop for client {sid}")
+    socketio.start_background_task(target=process_loop, sid=sid)
 
-# @app.route('/api/detect', methods=['POST'])
-# def detect():
-#     file_bytes = request.get_data()
-#     npimg = np.frombuffer(file_bytes, np.uint8)
-#     frame = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
-#     if frame is None:
-#         return jsonify({'error': 'Invalid image'}), 400
-#     results = detector.process_frame(frame)
-#     for result in results:
-#         analysis = analyze_face(result["img_URL"])
-#         if "error" in analysis:
-#             result["emotion_error"] = 'Cannot detect'
-#         else:
-#             result["emotion"] = analysis["emotion"]
-#             result["emotion_confidence"] = analysis["emotion_confidence"]
-#     return jsonify(results)
+def process_loop(sid):
+    while True:
+        print(f"[{sid}] Initializing stream...")
+        stream_manager.init_stream()
 
-if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0", port=7860)
+        # Wait for video file to be ready
+        wait_time = 0
+        while not os.path.exists(VIDEO_FILE) or os.path.getsize(VIDEO_FILE) < 1000:
+            time.sleep(0.5)
+            wait_time += 0.5
+            if wait_time > 10:
+                socketio.emit("processing_error", {"error": "Video file not ready after 10s"}, to=sid)
+                return
+
+        try:
+            detector.process_video_stream(
+                video_source=VIDEO_FILE,
+                max_frames=MAX_FRAMES,
+                emit_func=lambda result: socketio.emit("frame_processed", result, to=sid)
+            )
+            socketio.emit("processing_done", {"status": "completed"}, to=sid)
+            time.sleep(1)  # Wait before restarting
+        except Exception as e:
+            socketio.emit("processing_error", {"error": str(e)}, to=sid)
+            return
+
+if __name__ == "__main__":
+    socketio.run(app, debug=True, port=7860, host="0.0.0.0")
