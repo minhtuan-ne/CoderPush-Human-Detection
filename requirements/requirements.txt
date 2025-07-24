@@ -10,3 +10,4 @@ onnx==1.18.0
 onnxruntime==1.19.2
 streamlink==7.5.0
 deepface==0.0.93
+flask_socketio==5.5.1
