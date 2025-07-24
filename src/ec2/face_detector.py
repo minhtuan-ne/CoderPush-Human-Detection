@@ -111,8 +111,15 @@ class FaceDetector:
         safe_timestamp = timestamp.replace(":", "-")
         filename = f"face_{face_id}_{safe_timestamp}.jpg"
         filepath = os.path.join(self.output_dir, filename)
-        success = cv2.imwrite(filepath, face_img)
-        return filepath if success else None
+
+        # Compress image before saving
+        success, encoded_img = cv2.imencode('.jpg', face_img, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+        if success:
+            with open(filepath, 'wb') as f:
+                f.write(encoded_img)
+            return filepath
+        return None
+
 
 # if __name__ == "__main__":
 #     detector = FaceDetector()
