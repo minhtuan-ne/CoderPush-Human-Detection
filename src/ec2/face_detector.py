@@ -5,7 +5,6 @@ import numpy as np
 from insightface.app import FaceAnalysis
 from zoneinfo import ZoneInfo
 from numpy.linalg import norm
-# import time
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6):
@@ -25,12 +24,13 @@ class FaceDetector:
         local_time = utc_now.astimezone(ZoneInfo(tz_str))
         return local_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-    # def is_duplicate(self, embedding):
-    #     for known_emb in self.known_embeddings:
-    #         sim = np.dot(embedding, known_emb) / (norm(embedding) * norm(known_emb))
-    #         if sim > (1 - self.tolerance):
-    #             return True
-    #     return False
+    def is_duplicate(self, embedding):
+        for known_emb in self.known_embeddings:
+            sim = np.dot(embedding, known_emb) / (norm(embedding) * norm(known_emb))
+            if sim > (1 - self.tolerance):
+                print("Duplicate face")
+                return True
+        return False
 
     def process_frame(self, frame):
         faces = self.face_app.get(frame)
@@ -39,8 +39,8 @@ class FaceDetector:
             embedding = face.embedding
             if embedding is None:
                 continue
-            # if self.is_duplicate(embedding):
-            #     continue
+            if self.is_duplicate(embedding):
+                continue
             self.known_embeddings.append(embedding)
             self.face_counter += 1
             bbox = face.bbox.astype(int)
