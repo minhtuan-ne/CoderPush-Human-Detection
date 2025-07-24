@@ -38,10 +38,17 @@ class FaceDetector:
 
     def process_frame(self, frame):
         self.frame_skip_counter += 1
-        if self.frame_skip_counter % 5 != 0:
+        if self.frame_skip_counter % 20 != 0:
             print('skip')
             return []
-    
+
+        # else:
+        #     filename = f"frame_{self.frame_skip_counter}.jpg"
+        #     filepath = os.path.join('saved_frames', filename)
+        #     success = cv2.imwrite(filepath, frame)
+
+        print("Processing frame", self.frame_skip_counter)
+
         faces = self.face_app.get(frame)
         results = []
         for face in faces:
