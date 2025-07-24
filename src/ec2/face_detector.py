@@ -57,43 +57,6 @@ class FaceDetector:
         print(results)
         return results
 
-    # def process_video_stream(self, video_source=0, show_window=False, all_results=None, stop_event=None):
-    #     """
-    #     Continuously processes a video stream until a stop event is set.
-    #     - video_source: Path to the video file or stream URL.
-    #     - all_results: A thread-safe deque to append detection results to.
-    #     - stop_event: A threading.Event to signal when to stop processing.
-    #     """
-    #     while stop_event is None or not stop_event.is_set():
-    #         cap = cv2.VideoCapture(video_source)
-    #         if not cap.isOpened():
-    #             print(f"Failed to open video source: {video_source}, retrying in 5 seconds...")
-    #             time.sleep(5)
-    #             continue
-    #
-    #         print("Video source opened successfully. Starting frame processing.")
-    #         while not stop_event.is_set():
-    #             ret, frame = cap.read()
-    #             if not ret:
-    #                 print("End of stream or buffer. Re-opening video source...")
-    #                 break  # Break inner loop to reopen the capture
-    #
-    #             results = self.process_frame(frame)
-    #             if all_results is not None and results:
-    #                 all_results.extend(results)
-    #
-    #             if show_window:
-    #                 cv2.imshow('Face Detection', frame)
-    #                 if cv2.waitKey(1) & 0xFF == ord('q'):
-    #                     stop_event.set()
-    #                     break
-    #
-    #         cap.release()
-    #         if show_window:
-    #             cv2.destroyAllWindows()
-    #
-    #     print("Video processing stopped.")
-
     def process_video_stream(self, video_source=0, show_window=False, max_frames=50):
         cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
