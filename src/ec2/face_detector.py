@@ -6,7 +6,6 @@ from insightface.app import FaceAnalysis
 from zoneinfo import ZoneInfo
 from numpy.linalg import norm
 import time
-from flask import jsonify
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6):
@@ -41,7 +40,6 @@ class FaceDetector:
     def process_frame(self, frame):
         self.frame_skip_counter += 1
         if self.frame_skip_counter % 20 != 0:
-            print('skip')
             return []
 
         else:
@@ -72,10 +70,9 @@ class FaceDetector:
                 "img_URL": filepath,
                 "timestamp": timestamp
             })
-        print(results)
-        return jsonify(results)
+        return results
 
-    def process_video_stream(self, video_source=0, show_window=False, max_frames=10, emit_func=None):
+    def process_video_stream(self, video_source=0, show_window=False, max_frames=10):
         cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
             raise RuntimeError(f"Failed to open video source: {video_source}")
@@ -87,13 +84,9 @@ class FaceDetector:
                 if not ret or frame_count >= max_frames:
                     break
                 results = self.process_frame(frame)
-                if emit_func:
-                    emit_func(results) 
-                    time.sleep(0.1) 
 
-                all_results.append(results)
-
-                print(all_results)
+                if results:
+                    all_results.extend(results)
 
                 frame_count += 1
 
@@ -108,7 +101,6 @@ class FaceDetector:
             cap.release()
             if show_window:
                 cv2.destroyAllWindows()
-
         return all_results
 
 
