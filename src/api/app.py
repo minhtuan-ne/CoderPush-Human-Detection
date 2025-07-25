@@ -11,7 +11,7 @@ from ec2.face_detector import FaceDetector
 app = Flask(__name__)
 socketio = SocketIO(app, 
                     cors_allowed_origins="*",
-                    ping_timeout=180,
+                    ping_timeout=250,
                     ping_interval=25)
 
 # Configuration
