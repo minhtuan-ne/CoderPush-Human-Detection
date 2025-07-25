@@ -39,16 +39,13 @@ def handle_connected():
 def handle_disconnect():
     print("Client disconnected")
 
-# Ssend server own ping periodically
 def server_ping():
     while True:
         socketio.emit('ping_from_server', {'server_time': time.time()})
         socketio.sleep(5)
 
-# Handle manual "ping" event from client
 @socketio.on('ping_from_client')
 def handle_ping():
-    # Respond with "pong" and current server time
     socketio.emit('pong_from_server', {'server_time': time.time()})
 
 def process_frame():
@@ -66,4 +63,5 @@ def process_frame():
 
 
 if __name__ == "__main__":
+    socketio.start_background_task(server_ping)
     socketio.run(app, port=7860, host="0.0.0.0")
