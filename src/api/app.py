@@ -11,8 +11,8 @@ from ec2.face_detector import FaceDetector
 app = Flask(__name__)
 socketio = SocketIO(app, 
                     cors_allowed_origins="*",
-                    ping_timeout=60,
-                    ping_interval=5)
+                    ping_timeout=180,
+                    ping_interval=25)
 
 # Configuration
 STREAM_URL_1 = "https://www.youtube.com/watch?v=cH7VBI4QQzA"
@@ -21,13 +21,14 @@ VIDEO_FILE = "live.ts"
 MAX_FRAMES = 100
 
 # Initialize components
-stream_manager = StreamManager(STREAM_URL_1, output_file=VIDEO_FILE)
+stream_manager = StreamManager(STREAM_URL_2, output_file=VIDEO_FILE)
 detector = FaceDetector()
 
 @socketio.on("connect")
 def handle_connect():
     print("Client connecting")
     socketio.emit("connected", "Client connected")
+    socketio.emit('pong_from_server', {'server_time': time.time()})
     socketio.start_background_task(process_frame)
 
 @socketio.on("connected")
@@ -38,11 +39,17 @@ def handle_connected():
 def handle_disconnect():
     print("Client disconnected")
 
+# Ssend server own ping periodically
+def server_ping():
+    while True:
+        socketio.emit('ping_from_server', {'server_time': time.time()})
+        socketio.sleep(5)
+
 # Handle manual "ping" event from client
 @socketio.on('ping_from_client')
 def handle_ping():
     # Respond with "pong" and current server time
-    emit('pong_from_server', {'server_time': time.time()})
+    socketio.emit('pong_from_server', {'server_time': time.time()})
 
 def process_frame():
     while True:
