@@ -81,4 +81,7 @@ config/
 
 # Test folders
 tests/__pycache__/ 
-detected_faces/
+
+# Environments
+.env/.env
+.env/.env.own
