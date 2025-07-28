@@ -41,8 +41,12 @@ def handle_disconnect():
 
 def server_ping():
     while True:
-        socketio.emit('ping_from_server', {'server_time': time.time()})
-        socketio.sleep(5)
+        try:
+            socketio.emit('ping_from_server', {'server_time': time.time()})
+            socketio.sleep(5)
+        except Exception as e:
+            print(f"Error in server_ping: {e}")
+            socketio.sleep(5)
 
 @socketio.on('ping_from_client')
 def handle_ping():
@@ -50,16 +54,21 @@ def handle_ping():
 
 def process_frame():
     while True:
-        stream_manager.init_stream()
-        results = detector.process_video_stream(
-                    video_source=VIDEO_FILE,
-                    max_frames=MAX_FRAMES
-        )
-        if results:
-            print(results)
-            socketio.emit("frame_processed", results)
-        
-        socketio.sleep(1)
+        try:
+            stream_manager.init_stream()
+            results = detector.process_video_stream(
+                        video_source=VIDEO_FILE,
+                        max_frames=MAX_FRAMES
+            )
+            if results:
+                print(results)
+                socketio.emit("frame_processed", results)
+            
+            socketio.sleep(1)
+        except Exception as e:
+            print(f"Error in process_frame: {e}")
+            socketio.sleep(5)
+
 
 
 if __name__ == "__main__":
