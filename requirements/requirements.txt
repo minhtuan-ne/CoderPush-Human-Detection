@@ -13,3 +13,5 @@ deepface==0.0.93
 flask_socketio==5.5.1
 eventlet==0.40.2
 gunicorn==23.0.0
+boto3==1.39.69
+python-dotenv==0.21.0
