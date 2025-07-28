@@ -1,4 +1,4 @@
-from flask_socketio import SocketIO, emit # type: ignore
+from flask_socketio import SocketIO # type: ignore
 from flask import Flask, request
 from stream_manager import StreamManager
 import sys
