@@ -5,10 +5,11 @@ import numpy as np
 from insightface.app import FaceAnalysis
 from zoneinfo import ZoneInfo
 from numpy.linalg import norm
-import time
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
 
 class FaceDetector:
-    def __init__(self, output_dir="detected_faces", tolerance=0.6):
+    def __init__(self, output_dir="detected_faces", tolerance=0.6, s3_bucket=None, s3_prefix="faces/"):
         self.face_counter = 0
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
@@ -16,6 +17,26 @@ class FaceDetector:
         self.known_embeddings = []
         self.models = ['buffalo_l', 'buffalo_m', 'buffalo_s', 'buffalo_sc', 'antelopev2']
         self.current_model = self.models[0]
+        
+        # S3 configuration
+        self.s3_bucket = s3_bucket
+        self.s3_prefix = s3_prefix
+        self.s3_client = None
+        
+        # Initialize S3 client if bucket is provided
+        if self.s3_bucket:
+            try:
+                self.s3_client = boto3.client('s3')
+                # Test S3 connection
+                self.s3_client.head_bucket(Bucket=self.s3_bucket)
+                print(f"S3 bucket '{self.s3_bucket}' is accessible")
+            except NoCredentialsError:
+                print("AWS credentials not found. S3 upload will be disabled.")
+                self.s3_client = None
+            except ClientError as e:
+                print(f"S3 bucket access error: {e}. S3 upload will be disabled.")
+                self.s3_client = None
+        
         try:
             self.face_app = FaceAnalysis(name=self.current_model, providers=['CPUExecutionProvider'], root="/tmp/.insightface")
             self.face_app.prepare(ctx_id=0, det_size=(640, 640))
@@ -25,9 +46,33 @@ class FaceDetector:
         self.frame_skip_counter = 0
 
     def get_local_timestamp(self, tz_str='Asia/Ho_Chi_Minh'):
-        utc_now = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
+        utc_now = datetime.now(timezone.utc)
         local_time = utc_now.astimezone(ZoneInfo(tz_str))
         return local_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+    def upload_to_s3(self, local_filepath, s3_key):
+        if not self.s3_client or not self.s3_bucket:
+            return None
+        
+        try:
+            self.s3_client.upload_file(
+                local_filepath, 
+                self.s3_bucket, 
+                s3_key,
+                ExtraArgs={
+                    'ContentType': 'image/jpeg',
+                    'Metadata': {
+                        'uploaded_at': datetime.now(timezone.utc).isoformat(),
+                        'source': 'face_detector'
+                    }
+                }
+            )
+            s3_url = f"https://{self.s3_bucket}.s3.amazonaws.com/{s3_key}"
+            print(f"Uploaded to S3: {s3_url}")
+            return s3_url
+        except ClientError as e:
+            print(f"Failed to upload {local_filepath} to S3: {e}")
+            return None
 
     def is_duplicate(self, embedding):
         for known_emb in self.known_embeddings:
@@ -42,10 +87,11 @@ class FaceDetector:
         if self.frame_skip_counter % 20 != 0:
             return []
 
-        else:
-            filename = f"frame_{self.frame_skip_counter}.jpg"
-            filepath = os.path.join('saved_frames', filename)
-            success = cv2.imwrite(filepath, frame)
+        # else:
+        #     filename = f"frame_{self.frame_skip_counter}.jpg"
+        #     filepath = os.path.join('saved_frames', filename)
+        #     os.makedirs('saved_frames', exist_ok=True)
+        #     success = cv2.imwrite(filepath, frame)
 
         print("Processing frame", self.frame_skip_counter)
 
@@ -62,12 +108,22 @@ class FaceDetector:
             bbox = face.bbox.astype(int)
             x1, y1, x2, y2 = bbox
             timestamp = self.get_local_timestamp()
-            filepath = self._crop_and_save_face(frame, y1, x2, y2, x1, self.face_counter, timestamp)
-            if not filepath:
+            
+            # Crop and save face locally
+            local_filepath = self._crop_and_save_face(frame, y1, x2, y2, x1, self.face_counter, timestamp)
+            if not local_filepath:
                 continue
+            
+            # Upload to S3 if configured
+            s3_url = None
+            if self.s3_client and self.s3_bucket:
+                safe_timestamp = timestamp.replace(":", "-")
+                s3_key = f"{self.s3_prefix}face_{self.face_counter}_{safe_timestamp}.jpg"
+                s3_url = self.upload_to_s3(local_filepath, s3_key)
+            
             results.append({
                 "face_id": self.face_counter,
-                "img_URL": filepath,
+                "img_URL": s3_url,
                 "timestamp": timestamp
             })
         return results
@@ -103,7 +159,6 @@ class FaceDetector:
                 cv2.destroyAllWindows()
         return all_results
 
-
     def _crop_and_save_face(self, frame, top, right, bottom, left, face_id, timestamp):
         margin = 30
         img_height, img_width = frame.shape[:2]
@@ -123,6 +178,16 @@ class FaceDetector:
                 f.write(encoded_img)
             return filepath
         return None
+
+    def cleanup_local_files(self, keep_local=False):
+        if not keep_local and self.s3_client:
+            try:
+                for filename in os.listdir(self.output_dir):
+                    if filename.endswith('.jpg'):
+                        os.remove(os.path.join(self.output_dir, filename))
+                        print(f"Cleaned up local file: {filename}")
+            except Exception as e:
+                print(f"Error cleaning up local files: {e}")
 
 
 # if __name__ == "__main__":

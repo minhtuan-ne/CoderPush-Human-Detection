@@ -4,6 +4,10 @@ from stream_manager import StreamManager
 import sys
 import os
 import time
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv(".env/.env")
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
 from ec2.face_detector import FaceDetector
@@ -20,9 +24,12 @@ STREAM_URL_2 = "https://www.youtube.com/watch?v=VR-x3HdhKLQ"
 VIDEO_FILE = "live.ts"
 MAX_FRAMES = 100
 
-# Initialize components
+# Initialize components with S3 configuration
 stream_manager = StreamManager(STREAM_URL_2, output_file=VIDEO_FILE)
-detector = FaceDetector()
+detector = FaceDetector(
+    s3_bucket=os.getenv('S3_BUCKET_NAME'),
+    s3_prefix=os.getenv('S3_PREFIX', 'faces/')
+)
 
 @socketio.on("connect")
 def handle_connect():
@@ -61,7 +68,12 @@ def process_frame():
                         max_frames=MAX_FRAMES
             )
             if results:
-                print(results)
+                print(f"Detected {len(results)} faces")
+                # Log S3 uploads
+                for result in results:
+                    if result.get('img_URL'):
+                        print(f"Face {result['face_id']} uploaded to: {result['img_URL']}")
+                
                 socketio.emit("frame_processed", results)
             
             socketio.sleep(1)
@@ -69,8 +81,14 @@ def process_frame():
             print(f"Error in process_frame: {e}")
             socketio.sleep(5)
 
-
-
 if __name__ == "__main__":
+    s3_bucket = os.getenv('S3_BUCKET_NAME')
+    if s3_bucket:
+        print(f"S3 upload enabled - Bucket: {s3_bucket}")
+    else:
+        print("S3 upload disabled - no bucket configured")
+    
+    print("Staring serving ping")
     socketio.start_background_task(server_ping)
+    print("Server is running")
     socketio.run(app, port=7860, host="0.0.0.0")
