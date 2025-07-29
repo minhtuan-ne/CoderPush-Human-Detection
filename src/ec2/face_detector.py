@@ -62,7 +62,7 @@ class FaceDetector:
                 ExtraArgs={
                     'ContentType': 'image/jpeg',
                     'Metadata': {
-                        'uploaded_at': datetime.utcnow().isoformat(),
+                        'uploaded_at': datetime.now(timezone.utc).isoformat(),
                         'source': 'face_detector'
                     }
                 }
