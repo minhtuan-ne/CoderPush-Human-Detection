@@ -5,10 +5,8 @@ import numpy as np
 from insightface.app import FaceAnalysis
 from zoneinfo import ZoneInfo
 from numpy.linalg import norm
-import time
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
-import logging
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6, s3_bucket=None, s3_prefix="faces/"):
@@ -48,7 +46,7 @@ class FaceDetector:
         self.frame_skip_counter = 0
 
     def get_local_timestamp(self, tz_str='Asia/Ho_Chi_Minh'):
-        utc_now = datetime.utcnow().replace(tzinfo=ZoneInfo("UTC"))
+        utc_now = datetime.now(timezone.utc)
         local_time = utc_now.astimezone(ZoneInfo(tz_str))
         return local_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
