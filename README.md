@@ -21,7 +21,18 @@ source venv/bin/activate
 pip install -r requirements/requirements.txt
 ```
 
-### 4. Run the server
+### 4. Set up environment variables
+
+Copy the example environment file:
+
+```bash
+cp .env/.env.example .env/.env
+```
+
+Then open `.env/.env` and fill in the actual values for your configuration.
+
+
+### 5. Run the server
 
 ```bash
 python src/api/app.py
