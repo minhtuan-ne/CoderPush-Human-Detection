@@ -53,7 +53,6 @@ class FaceDetector:
         return local_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
     def upload_to_s3(self, local_filepath, s3_key):
-        """Upload a file to S3 bucket"""
         if not self.s3_client or not self.s3_bucket:
             return None
         
@@ -183,7 +182,6 @@ class FaceDetector:
         return None
 
     def cleanup_local_files(self, keep_local=False):
-        """Optionally clean up local files after S3 upload"""
         if not keep_local and self.s3_client:
             try:
                 for filename in os.listdir(self.output_dir):
