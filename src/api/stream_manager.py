@@ -19,6 +19,18 @@ class StreamManager:
         
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+
+        # Youtube cookies
+        self.HSID = os.getenv('HSID')
+        self.SSID = os.getenv('SSID')
+        self.APISID = os.getenv('APISID')
+        self.SAPISID = os.getenv('SAPISID')
+        self.SID = os.getenv('SID')
+        self.LOGIN_INFO = os.getenv('LOGIN_INFO')
+        self.CONSISTENCY = os.getenv('CONSISTENCY')
+        self.SIDCC = os.getenv('SIDCC')
+        self.VISITOR_INFO1_LIVE = os.getenv('VISITOR_INFO1_LIVE')
+        self.VISITOR_PRIVACY_METADATA = os.getenv('VISITOR_PRIVACY_METADATA')
     
     def init_stream(self):
         """Initialize the video stream and wait for it to be ready."""
@@ -28,7 +40,22 @@ class StreamManager:
                 
                 self.logger.info(f"Starting stream from: {self.stream_url}")
                 self.process = subprocess.Popen(
-                    ["streamlink", "--force", self.stream_url, "best", "-o", self.output_file],
+                    ["streamlink",
+                    "--force", 
+
+                    "--http-cookie", f"HSID={self.HSID}",
+                    "--http-cookie", f"SSID={self.SSID}",
+                    "--http-cookie", f"APISID=o{self.APISID}",
+                    "--http-cookie", f"SAPISID={self.SAPISID}",
+                    "--http-cookie", f"SID={self.SID}",
+                    "--http-cookie", f"LOGIN_INFO={self.LOGIN_INFO}",
+                    "--http-cookie", f"CONSISTENCY={self.CONSISTENCY}",
+                    "--http-cookie", f"SIDCC={self.SIDCC}",
+                    "--http-cookie", f"VISITOR_INFO1_LIVE={self.VISITOR_INFO1_LIVE}",
+                    "--http-cookie", f"VISITOR_PRIVACY_METADATA={self.VISITOR_PRIVACY_METADATA}",
+
+                    self.stream_url,
+                    "best", "-o", self.output_file],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
