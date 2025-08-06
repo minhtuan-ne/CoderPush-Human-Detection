@@ -18,7 +18,7 @@ socketio = SocketIO(app,
                     ping_interval=25)
 
 # Configuration
-STREAM_URL = "http://185.194.123.84:8001/mjpg/video.mjpg"
+STREAM_URL = os.getenv('STREAM_URL', "http://185.194.123.84:8001/mjpg/video.mjpg")
 MAX_FRAMES = 100
 
 # Initialize components with S3 configuration
