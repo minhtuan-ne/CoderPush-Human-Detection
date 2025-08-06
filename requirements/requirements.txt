@@ -9,7 +9,6 @@ insightface==0.7.3
 onnx==1.18.0
 onnxruntime==1.19.2
 streamlink==7.5.0
-deepface==0.0.93
 flask_socketio==5.5.1
 eventlet==0.40.2
 gunicorn==23.0.0
