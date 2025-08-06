@@ -1,6 +1,5 @@
 from flask_socketio import SocketIO # type: ignore
 from flask import Flask, request
-from stream_manager import StreamManager
 import sys
 import os
 import time
@@ -19,13 +18,10 @@ socketio = SocketIO(app,
                     ping_interval=25)
 
 # Configuration
-STREAM_URL_1 = "https://www.youtube.com/watch?v=cH7VBI4QQzA"
-STREAM_URL_2 = "https://www.youtube.com/watch?v=VR-x3HdhKLQ"
-VIDEO_FILE = "live.ts"
+STREAM_URL = "http://185.194.123.84:8001/mjpg/video.mjpg"
 MAX_FRAMES = 100
 
 # Initialize components with S3 configuration
-stream_manager = StreamManager(STREAM_URL_2, output_file=VIDEO_FILE)
 detector = FaceDetector(
     s3_bucket=os.getenv('S3_BUCKET_NAME'),
     s3_prefix=os.getenv('S3_PREFIX', 'faces/')
@@ -62,9 +58,8 @@ def handle_ping():
 def process_frame():
     while True:
         try:
-            stream_manager.init_stream()
             results = detector.process_video_stream(
-                        video_source=VIDEO_FILE,
+                        video_source=STREAM_URL,
                         max_frames=MAX_FRAMES
             )
             if results:
