@@ -188,14 +188,3 @@ class FaceDetector:
                         print(f"Cleaned up local file: {filename}")
             except Exception as e:
                 print(f"Error cleaning up local files: {e}")
-
-
-# if __name__ == "__main__":
-#     detector = FaceDetector()
-#     # frame = cv2.imread('detected_faces/sample_frame.png')
-#     # if frame is None:
-#     #     print("Failed to load image!")
-#     # else:
-#         # detector.process_frame(frame)
-#     video_source = 'live.ts'
-#     detector.process_video_stream(video_source=video_source)
