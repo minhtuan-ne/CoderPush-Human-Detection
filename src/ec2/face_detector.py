@@ -22,6 +22,9 @@ class FaceDetector:
         self.s3_bucket = s3_bucket
         self.s3_prefix = s3_prefix
         self.s3_client = None
+
+        # Skip frames to reduce processing time
+        self.skip_frames = 5
         
         # Initialize S3 client if bucket is provided
         if self.s3_bucket:
@@ -84,7 +87,7 @@ class FaceDetector:
 
     def process_frame(self, frame):
         self.frame_skip_counter += 1
-        if self.frame_skip_counter % 20 != 0:
+        if self.frame_skip_counter % self.skip_frames != 0:
             return []
 
         # else:
