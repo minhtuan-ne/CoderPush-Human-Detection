@@ -2,7 +2,6 @@ import cv2
 from datetime import datetime, timezone
 import os
 import numpy as np
-from insightface.app import FaceAnalysis
 from zoneinfo import ZoneInfo
 from numpy.linalg import norm
 import boto3
