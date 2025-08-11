@@ -4,7 +4,6 @@ numpy==1.26.4
 opencv-python==4.11.0.86
 deepface==0.0.93
 tf_keras==2.19.0
-insightface==0.7.3
 onnx==1.18.0
 onnxruntime==1.19.2
 streamlink==7.5.0
