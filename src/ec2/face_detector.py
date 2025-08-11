@@ -7,6 +7,13 @@ from zoneinfo import ZoneInfo
 from numpy.linalg import norm
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
+import sys
+
+# Add the src directory to the path for imports
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from ec2.mediapipe_detector import mediapipe_detector
+from utils.face_embedding_util import FaceNetEmbedding
+
 
 class FaceDetector:
     def __init__(self, output_dir="detected_faces", tolerance=0.6, s3_bucket=None, s3_prefix="faces/"):
@@ -15,22 +22,20 @@ class FaceDetector:
         os.makedirs(self.output_dir, exist_ok=True)
         self.tolerance = tolerance
         self.known_embeddings = []
-        self.models = ['buffalo_l', 'buffalo_m', 'buffalo_s', 'buffalo_sc', 'antelopev2']
-        self.current_model = self.models[0]
-        
-        # S3 configuration
+        self.current_model = 'mediapipe'
+
         self.s3_bucket = s3_bucket
         self.s3_prefix = s3_prefix
         self.s3_client = None
 
-        # Skip frames to reduce processing time
         self.skip_frames = 5
-        
-        # Initialize S3 client if bucket is provided
+        self.frame_skip_counter = 0
+
+        self.embedding_model = FaceNetEmbedding()
+
         if self.s3_bucket:
             try:
                 self.s3_client = boto3.client('s3')
-                # Test S3 connection
                 self.s3_client.head_bucket(Bucket=self.s3_bucket)
                 print(f"S3 bucket '{self.s3_bucket}' is accessible")
             except NoCredentialsError:
@@ -39,14 +44,6 @@ class FaceDetector:
             except ClientError as e:
                 print(f"S3 bucket access error: {e}. S3 upload will be disabled.")
                 self.s3_client = None
-        
-        try:
-            self.face_app = FaceAnalysis(name=self.current_model, providers=['CPUExecutionProvider'], root="/tmp/.insightface")
-            self.face_app.prepare(ctx_id=0, det_size=(640, 640))
-        except Exception as e:
-            raise RuntimeError(f"Failed to initialize InsightFace: {str(e)}")
-
-        self.frame_skip_counter = 0
 
     def get_local_timestamp(self, tz_str='Asia/Ho_Chi_Minh'):
         utc_now = datetime.now(timezone.utc)
@@ -56,11 +53,11 @@ class FaceDetector:
     def upload_to_s3(self, local_filepath, s3_key):
         if not self.s3_client or not self.s3_bucket:
             return None
-        
+
         try:
             self.s3_client.upload_file(
-                local_filepath, 
-                self.s3_bucket, 
+                local_filepath,
+                self.s3_bucket,
                 s3_key,
                 ExtraArgs={
                     'ContentType': 'image/jpeg',
@@ -78,10 +75,13 @@ class FaceDetector:
             return None
 
     def is_duplicate(self, embedding):
+        if embedding is None:
+            return True
+
         for known_emb in self.known_embeddings:
             sim = np.dot(embedding, known_emb) / (norm(embedding) * norm(known_emb))
             if sim > (1 - self.tolerance):
-                print("Duplicate face")
+                print("Duplicate face detected")
                 return True
         return False
 
@@ -90,40 +90,36 @@ class FaceDetector:
         if self.frame_skip_counter % self.skip_frames != 0:
             return []
 
-        # else:
-        #     filename = f"frame_{self.frame_skip_counter}.jpg"
-        #     filepath = os.path.join('saved_frames', filename)
-        #     os.makedirs('saved_frames', exist_ok=True)
-        #     success = cv2.imwrite(filepath, frame)
+        else:
+            filename = f"frame_{self.frame_skip_counter}.jpg"
+            filepath = os.path.join('saved_frames', filename)
+            os.makedirs('saved_frames', exist_ok=True)
+            success = cv2.imwrite(filepath, frame)
+
 
         print("Processing frame", self.frame_skip_counter)
 
-        faces = self.face_app.get(frame)
+        if self.current_model == 'mediapipe':
+            faces = mediapipe_detector(frame)
+
         results = []
         for face in faces:
             embedding = face.embedding
-            if embedding is None:
-                continue
-            if self.is_duplicate(embedding):
+            if embedding is None or self.is_duplicate(embedding):
                 continue
             self.known_embeddings.append(embedding)
             self.face_counter += 1
             bbox = face.bbox.astype(int)
             x1, y1, x2, y2 = bbox
             timestamp = self.get_local_timestamp()
-            
-            # Crop and save face locally
             local_filepath = self._crop_and_save_face(frame, y1, x2, y2, x1, self.face_counter, timestamp)
             if not local_filepath:
                 continue
-            
-            # Upload to S3 if configured
             s3_url = None
             if self.s3_client and self.s3_bucket:
                 safe_timestamp = timestamp.replace(":", "-")
                 s3_key = f"{self.s3_prefix}face_{self.face_counter}_{safe_timestamp}.jpg"
                 s3_url = self.upload_to_s3(local_filepath, s3_key)
-            
             results.append({
                 "face_id": self.face_counter,
                 "img_URL": s3_url,
@@ -143,12 +139,9 @@ class FaceDetector:
                 if not ret or frame_count >= max_frames:
                     break
                 results = self.process_frame(frame)
-
                 if results:
                     all_results.extend(results)
-
                 frame_count += 1
-
                 if show_window:
                     cv2.imshow('Face Detection', frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
