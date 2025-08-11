@@ -4,7 +4,6 @@ numpy==1.26.4
 opencv-python==4.11.0.86
 deepface==0.0.93
 tf_keras==2.19.0
-torch==2.7.1
 insightface==0.7.3
 onnx==1.18.0
 onnxruntime==1.19.2
@@ -14,3 +13,7 @@ eventlet==0.40.2
 gunicorn==23.0.0
 boto3==1.39.14
 python-dotenv==0.21.0
+mediapipe==0.10.21
+facenet-pytorch==2.6.0
+torch==2.2.2
+torchvision==0.17.2
