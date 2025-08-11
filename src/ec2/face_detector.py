@@ -90,11 +90,11 @@ class FaceDetector:
         if self.frame_skip_counter % self.skip_frames != 0:
             return []
 
-        else:
-            filename = f"frame_{self.frame_skip_counter}.jpg"
-            filepath = os.path.join('saved_frames', filename)
-            os.makedirs('saved_frames', exist_ok=True)
-            success = cv2.imwrite(filepath, frame)
+        # else:
+        #     filename = f"frame_{self.frame_skip_counter}.jpg"
+        #     filepath = os.path.join('saved_frames', filename)
+        #     os.makedirs('saved_frames', exist_ok=True)
+        #     success = cv2.imwrite(filepath, frame)
 
 
         print("Processing frame", self.frame_skip_counter)
