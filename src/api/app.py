@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv(".env/.env")
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
+# Add the src directory to the path for imports
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from ec2.face_detector import FaceDetector
 
 app = Flask(__name__)
